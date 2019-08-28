@@ -1,1 +1,1 @@
-# vscode-i18n-core
+👽 vscode-vue-i18n、vscode-react-i18n的核心文件
