@@ -55,7 +55,10 @@ export abstract class Annotation {
     while ((match = this.KEY_REG.exec(text))) {
       const index = match.index
       const matchKey = match[0]
-      const key = matchKey.replace(new RegExp(this.KEY_REG), '$1')
+      const key = this.transformKey(
+        text,
+        matchKey.replace(new RegExp(this.KEY_REG), '$1')
+      )
       const i18n = i18nFile.getFileByFilepath(document.fileName)
       const trans = i18n.getI18n(key)
       const { text: mainText = '' } =
@@ -86,5 +89,9 @@ export abstract class Annotation {
       decorations.push(decoration)
       activeTextEditor.setDecorations(textEditorDecorationType, decorations)
     }
+  }
+
+  transformKey(_text, key): string {
+    return key
   }
 }
