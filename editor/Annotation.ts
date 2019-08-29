@@ -17,7 +17,7 @@ export abstract class Annotation {
 
   constructor() {
     const { disposables } = this
-    const debounceUpdate = debounce(() => this.update(), 800)
+    const debounceUpdate = debounce(() => this.update(), 500)
 
     Config.i18nPaths.forEach(i18nPath => {
       const i18nDirWatcher = vscode.workspace.createFileSystemWatcher(
@@ -48,9 +48,12 @@ export abstract class Annotation {
     const unuseDecorations = []
 
     activeTextEditor.setDecorations(unuseDecorationType, [])
-    activeTextEditor.setDecorations(textEditorDecorationType, [])
+    if (!text) {
+      activeTextEditor.setDecorations(textEditorDecorationType, [])
+    }
 
     // 从文本里遍历生成中文注释
+    // TODO: 这里的实现职责耦合了
     let match = null
     while ((match = this.KEY_REG.exec(text))) {
       const index = match.index
@@ -83,12 +86,13 @@ export abstract class Annotation {
       // 没有翻译的文案透明化处理
       if (!mainText) {
         unuseDecorations.push({ range })
-        activeTextEditor.setDecorations(unuseDecorationType, unuseDecorations)
       }
 
       decorations.push(decoration)
-      activeTextEditor.setDecorations(textEditorDecorationType, decorations)
     }
+
+    activeTextEditor.setDecorations(unuseDecorationType, unuseDecorations)
+    activeTextEditor.setDecorations(textEditorDecorationType, decorations)
   }
 
   transformKey(_text, key): string {

@@ -14,13 +14,17 @@ const toCamelCase = str => {
 const onExtract = async ({
   filepath,
   text,
-  range,
-  template
+  keyReplace,
+  promptText = `请输入要保存的路径，例如:home.document.title`,
+  keyTransform = key => key,
+  defaultKeyTransform = key => key
 }: {
   filepath: string
   text: string
-  range: vscode.Range
-  template: string
+  keyReplace: (key) => string
+  promptText?: string
+  keyTransform?: (key) => string
+  defaultKeyTransform?: (key) => string
 }) => {
   // 生成参考key
   let relativeName: any = path.relative(vscode.workspace.rootPath, filepath)
@@ -41,14 +45,16 @@ const onExtract = async ({
     .substr(-6)}`
 
   let key = await vscode.window.showInputBox({
-    prompt: `请输入要保存的路径 (例如:home.document.title)`,
+    prompt: promptText,
     valueSelection: [defaultKey.lastIndexOf('.') + 1, defaultKey.length],
-    value: defaultKey
+    value: defaultKeyTransform(defaultKey)
   })
 
   if (!key) {
     return
   }
+
+  key = keyTransform(key)
 
   const i18n = i18nFile.getFileByFilepath(filepath)
 
@@ -62,10 +68,7 @@ const onExtract = async ({
   vscode.window.activeTextEditor.edit(editBuilder => {
     const { start, end } = vscode.window.activeTextEditor.selection
 
-    editBuilder.replace(
-      new vscode.Range(start, end),
-      template.replace(/{key}/g, key)
-    )
+    editBuilder.replace(new vscode.Range(start, end), keyReplace(key))
   })
 
   // 翻译内容
