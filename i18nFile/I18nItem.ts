@@ -2,6 +2,7 @@ import * as vscode from 'vscode'
 import * as path from 'path'
 import { google, baidu, youdao } from 'translation.js'
 import { get, set, omit } from 'lodash'
+import * as YAML from 'yaml'
 import * as fs from 'fs'
 import Utils from '../Utils'
 import Config from '../Config'
@@ -22,26 +23,48 @@ export interface ITransData extends ILng {
   text: any
 }
 
-enum StructureType {
+export enum StructureType {
   DIR, // 结构是文件夹的模式
   FILE // 结构是语言文件的模式
 }
 
+const FILE_EXT = {
+  YAML: '.yml',
+  JSON: '.json'
+}
 const fileCache: any = {}
 
 export class I18nItem {
   localepath: string
   structureType: StructureType
+  fileExt = FILE_EXT.JSON
 
   constructor(localepath) {
     this.localepath = localepath
     this.setStructureType()
+    this.setFileExt()
     this.watch()
   }
 
   private setStructureType() {
     const isDirectory = this.lngs.some(lngItem => lngItem.isDirectory)
     this.structureType = isDirectory ? StructureType.DIR : StructureType.FILE
+  }
+
+  private setFileExt() {
+    const [lngInfo] = this.lngs
+
+    if (!lngInfo.isDirectory) {
+      const { ext } = path.parse(lngInfo.filepath)
+      this.fileExt = ext
+      return
+    }
+
+    const hasYaml = fs.readdirSync(lngInfo.filepath).some(filename => {
+      return path.parse(filename).ext === FILE_EXT.YAML
+    })
+
+    this.fileExt = hasYaml ? FILE_EXT.YAML : FILE_EXT.JSON
   }
 
   private watch() {
@@ -51,7 +74,9 @@ export class I18nItem {
 
     const updateFile = (type, { fsPath: filepath }) => {
       const { ext } = path.parse(filepath)
-      if (ext !== '.json') return
+      if (![FILE_EXT.JSON, FILE_EXT.YAML].includes(ext)) {
+        return
+      }
 
       switch (type) {
         case 'del':
@@ -103,9 +128,28 @@ export class I18nItem {
     return files
   }
 
-  readFile(filepath: string): any {
+  dataParse(filepath: string, data: any) {
+    const { ext } = path.parse(filepath)
+    return ext === FILE_EXT.JSON ? JSON.parse(data) : YAML.parse(data)
+  }
+
+  dataStringify(filepath: string, data: any) {
+    const { ext } = path.parse(filepath)
+    return ext === FILE_EXT.JSON
+      ? JSON.stringify(data, null, 2)
+      : YAML.stringify(data)
+  }
+
+  readFile(filepath: string, useCache: boolean = false): any {
+    // TODO: LRU缓存优化
+    if (useCache) {
+      return fileCache[filepath] || this.readFile(filepath)
+    }
+
     try {
-      const data = JSON.parse(fs.readFileSync(filepath, 'utf-8'))
+      const data = this.dataParse(filepath, fs.readFileSync(filepath, 'utf-8'))
+
+      fileCache[filepath] = data
       return typeof data === 'object' ? data : {}
     } catch (err) {
       return {}
@@ -142,18 +186,26 @@ export class I18nItem {
 
   async overrideCheck(keypath): Promise<boolean> {
     let [{ text }] = this.getI18n(keypath)
+    // 检测尾 key
     let overrideKey = text ? keypath : undefined
 
     if (!overrideKey) {
       let tempKeypath = keypath.split('.')
 
+      // 向前检测 key
       while (tempKeypath.length) {
         tempKeypath.pop()
 
         const tempOverrideKey = tempKeypath.join('.')
         const [{ text: tempText }] = this.getI18n(tempOverrideKey)
 
-        if (typeof tempText !== 'object' && typeof tempText !== undefined) {
+        if (
+          typeof tempText === 'object' ||
+          typeof tempText === 'undefined' ||
+          tempText === 'undefined'
+        ) {
+          continue
+        } else {
           overrideKey = tempOverrideKey
           text = tempText
           break
@@ -167,7 +219,7 @@ export class I18nItem {
 
     const overrideText = '覆盖'
     const isOverride = await vscode.window.showInformationMessage(
-      `已有 ${overrideKey}:${text}, 覆盖吗？`,
+      `已有 ${overrideKey} 👉 ${text}, 覆盖吗？`,
       { modal: true },
       overrideText
     )
@@ -201,7 +253,10 @@ export class I18nItem {
 
     transData.forEach(({ filepath, keypath }) => {
       const file = fileCache[filepath]
-      fs.writeFileSync(filepath, JSON.stringify(omit(file, keypath), null, 2))
+      fs.writeFileSync(
+        filepath,
+        this.dataStringify(filepath, omit(file, keypath))
+      )
     })
   }
 
@@ -213,15 +268,12 @@ export class I18nItem {
       if (this.structureType === StructureType.DIR) {
         const [filename, ...realpath] = key.split('.')
 
-        i18nFilepath = path.join(i18nFilepath, `${filename}.json`)
+        i18nFilepath = path.join(i18nFilepath, `${filename}${this.fileExt}`)
         keypath = realpath.join('.')
       }
 
       // 读取文件
-      // TODO: LRU缓存优化
-      if (!fileCache[i18nFilepath]) {
-        fileCache[i18nFilepath] = this.readFile(i18nFilepath)
-      }
+      const file = this.readFile(i18nFilepath, true)
 
       return {
         ...lngItem,
@@ -231,9 +283,7 @@ export class I18nItem {
         key,
         keypath,
         filepath: i18nFilepath,
-        text: keypath
-          ? get(fileCache[i18nFilepath], keypath)
-          : fileCache[i18nFilepath]
+        text: keypath ? get(file, keypath) : file
       }
     })
   }
@@ -241,13 +291,10 @@ export class I18nItem {
   async writeI18n(transData: ITransData[]): Promise<any> {
     const writePromise = transData.map(({ filepath, keypath, text }) => {
       return new Promise((resolve, reject) => {
-        if (!fileCache[filepath]) {
-          fileCache[filepath] = this.readFile(filepath)
-        }
-        const file = fileCache[filepath]
+        const file = this.readFile(filepath, true)
 
         set(file, keypath, text)
-        fs.writeFile(filepath, JSON.stringify(file, null, 2), err => {
+        fs.writeFile(filepath, this.dataStringify(filepath, file), err => {
           if (err) {
             return reject(err)
           }

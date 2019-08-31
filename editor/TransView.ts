@@ -5,8 +5,6 @@ import * as path from 'path'
 import meta from '../meta'
 import Config from '../Config'
 import { i18nFile } from '../i18nFile/I18nFile'
-import { ITransData } from '../i18nFile/I18nItem'
-import Log from '../Log'
 
 const EVENT_TYPE = {
   READY: 0,
