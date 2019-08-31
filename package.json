@@ -1,0 +1,10 @@
+{
+  "name": "vscode-i18n-core",
+  "version": "1.0.0",
+  "repository": "git@github.com:think2011/vscode-i18n-core.git",
+  "author": "think2011 <452125301.hzplay@gmail.com>",
+  "license": "MIT",
+  "dependencies": {
+    "yaml": "^1.6.0"
+  }
+}
