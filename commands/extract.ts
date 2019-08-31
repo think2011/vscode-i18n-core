@@ -4,6 +4,7 @@ import meta from '../meta'
 import * as path from 'path'
 import { i18nFile } from '../i18nFile'
 import Config from '../Config'
+import { StructureType } from '../i18nFile/I18nItem'
 
 const toCamelCase = str => {
   return str.replace(/(-\w)/g, $1 => {
@@ -43,11 +44,12 @@ const onExtract = async ({
   defaultKey = `${defaultKey.join('.')}.${Math.random()
     .toString(36)
     .substr(-6)}`
+  defaultKey = defaultKeyTransform(defaultKey)
 
   let key = await vscode.window.showInputBox({
     prompt: promptText,
     valueSelection: [defaultKey.lastIndexOf('.') + 1, defaultKey.length],
-    value: defaultKeyTransform(defaultKey)
+    value: defaultKey
   })
 
   if (!key) {
@@ -57,6 +59,10 @@ const onExtract = async ({
   key = keyTransform(key)
 
   const i18n = i18nFile.getFileByFilepath(filepath)
+
+  if (i18n.structureType === StructureType.DIR && key.indexOf('.') === -1) {
+    key = `common.${key}`
+  }
 
   // 重复检测
   const isOverride = await i18n.overrideCheck(key)
