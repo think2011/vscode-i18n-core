@@ -147,7 +147,11 @@ export class I18nItem {
     }
 
     try {
-      const data = this.dataParse(filepath, fs.readFileSync(filepath, 'utf-8'))
+      let fileData = fs.readFileSync(filepath)
+      if (fileData[0] === 0xEF && fileData[1] === 0xBB && fileData[2] === 0xBF) {
+        fileData = fileData.slice(3)
+      }
+      const data = this.dataParse(filepath, fileData.toString('utf-8'))
 
       fileCache[filepath] = data
       return typeof data === 'object' ? data : {}
