@@ -4,7 +4,7 @@ import { google, baidu, youdao } from 'translation.js'
 import { get, set, omit } from 'lodash'
 import * as YAML from 'yaml'
 import * as fs from 'fs'
-import Utils from '../Utils'
+import Utils from '../utils'
 import Config from '../Config'
 import Log from '../Log'
 

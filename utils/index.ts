@@ -1,7 +1,7 @@
-import lngs from './lngs'
+import lngs from '../lngs'
 
 export default class Utils {
-  static normalizeLng(lng) {
+  static normalizeLng(lng: string) {
     const result = lngs.find((lngItem: string | string[]) => {
       if (Array.isArray(lngItem) && lngItem[1].includes(lng)) {
         return true

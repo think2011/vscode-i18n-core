@@ -1,5 +1,6 @@
 import * as vscode from 'vscode'
-import Utils from './Utils'
+import * as path from 'path'
+import Utils from './utils'
 
 const I18N_PATHS_KEY = 'i18nPaths'
 
@@ -20,8 +21,13 @@ export default class Config {
   }
 
   static get i18nPaths() {
+    const rootPath = vscode.workspace.rootPath
     const paths = this.getConfig(I18N_PATHS_KEY)
-    return paths ? paths.split(',') : []
+    const relativePaths = paths ? paths.split(',') : []
+
+    return relativePaths.map((pathItem: string) =>
+      path.resolve(rootPath, pathItem)
+    )
   }
 
   static get version() {

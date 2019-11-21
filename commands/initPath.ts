@@ -1,5 +1,6 @@
 import * as vscode from 'vscode'
 import * as fg from 'fast-glob'
+import * as path from 'path'
 
 import meta from '../meta'
 import Config from '../Config'
@@ -9,10 +10,12 @@ class InitPath {
   async autoInit() {
     const rootPath = vscode.workspace.rootPath
     const pattern = [`${rootPath}/**/(locales|locale|i18n|lang|langs)`]
-    const result: any[] = await fg(pattern, {
-      ignore: ['**/node_modules'],
-      onlyDirectories: true
-    })
+    const result: any[] = (
+      await fg(pattern, {
+        ignore: ['**/node_modules'],
+        onlyDirectories: true
+      })
+    ).map((resultItem: string) => path.relative(rootPath, resultItem))
 
     Config.updateI18nPaths(result)
 
