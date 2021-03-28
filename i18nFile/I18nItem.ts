@@ -1,12 +1,13 @@
 import * as vscode from 'vscode'
 import * as path from 'path'
 import { google, baidu, youdao } from 'translation.js'
-import { get, set, omit } from 'lodash'
+import { get, set, omit, isEmpty } from 'lodash'
 import * as YAML from 'yaml'
 import * as fs from 'fs'
 import Utils from '../utils'
 import Config from '../Config'
 import Log from '../Log'
+import { i18nFile } from './I18nFile'
 
 interface ILng {
   localepath: string
@@ -28,11 +29,20 @@ export enum StructureType {
   FILE // 结构是语言文件的模式
 }
 
+export enum MatchMode {
+  READ, // 读取操作
+  WRITE // 写入操作
+}
+
 const FILE_EXT = {
   YAML: '.yml',
   JSON: '.json'
 }
 const fileCache: any = {}
+
+const emptyTrans = (transData: ITransData[]) => {
+  return transData.every((item) => !item.text);
+};
 
 export class I18nItem {
   localepath: string
@@ -260,30 +270,46 @@ export class I18nItem {
     })
   }
 
-  getI18n(key: string): ITransData[] {
-    return this.lngs.map(lngItem => {
+  getI18n(key: string, mode:MatchMode = MatchMode.READ): ITransData[] {
+    let transData = this.getFileI18n(key, mode)
+
+    // 尝试使用 common 配置
+    if (emptyTrans(transData) && Config.i18nCommonPath && mode === MatchMode.READ) {
+      const commonI18n = i18nFile.getFileByFilepath(Config.i18nCommonPath)
+      transData = commonI18n.getFileI18n(key, mode)
+    }
+    return transData
+  }
+
+  getFileI18n(key: string,  mode:MatchMode = MatchMode.READ): ITransData[] {
+    return this.lngs.map((lngItem) => {
       let i18nFilepath = lngItem.filepath
       let keypath = key
-
+      let kabekCaseFilename
       if (this.structureType === StructureType.DIR) {
         const [filename, ...realpath] = key.split('.')
-
+        kabekCaseFilename = Utils.camelToKabeb(filename)
         i18nFilepath = path.join(i18nFilepath, `${filename}${this.fileExt}`)
         keypath = realpath.join('.')
       }
 
       // 读取文件
-      const file = this.readFile(i18nFilepath, true)
-
+      let file = this.readFile(i18nFilepath, true)
+      // 尝试读取短横线命名格式的文件
+      if (isEmpty(file) && Config.filenameToKebabCase && mode === MatchMode.READ) {
+        i18nFilepath = path.join(
+          lngItem.filepath,
+          `${kabekCaseFilename}${this.fileExt}`
+        )
+        file = this.readFile(i18nFilepath, true)
+      }
       return {
         ...lngItem,
-        id: Math.random()
-          .toString(36)
-          .substr(-6),
+        id: Math.random().toString(36).substr(-6),
         key,
         keypath,
         filepath: i18nFilepath,
-        text: keypath ? get(file, keypath) : file
+        text: keypath ? get(file, keypath) : file,
       }
     })
   }

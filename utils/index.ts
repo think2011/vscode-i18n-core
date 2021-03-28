@@ -19,4 +19,7 @@ export default class Utils {
       ? ((Array.isArray(result) ? result[0] : result) as string)
       : undefined
   }
+  static camelToKabeb(str: string) {
+    return str.replace(/([A-Z])/g, "-$1").toLowerCase()
+  }  
 }

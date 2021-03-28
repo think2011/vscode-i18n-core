@@ -3,6 +3,8 @@ import * as path from 'path'
 import Utils from './utils'
 
 const I18N_PATHS_KEY = 'i18nPaths'
+const I18N_COMMON_PATH_KEY = 'i18nCommonPath'
+const FILENAME_TO_KEBAB_CASE = 'filenameToKebabCase'
 
 export default class Config {
   static extAuthor: string
@@ -29,6 +31,16 @@ export default class Config {
       path.resolve(rootPath, pathItem)
     )
   }
+
+  static get i18nCommonPath() {
+    const rootPath = vscode.workspace.rootPath
+    const commonPath = this.getConfig(I18N_COMMON_PATH_KEY)
+    return path.resolve(rootPath, commonPath)
+  }
+
+  static get filenameToKebabCase() {
+    return this.getConfig(FILENAME_TO_KEBAB_CASE)
+  }  
 
   static get version() {
     return this.extension.packageJSON.version

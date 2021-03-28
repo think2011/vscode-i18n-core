@@ -2,9 +2,22 @@ import * as vscode from 'vscode'
 import * as path from 'path'
 import Config from '../Config'
 import { I18nItem } from './I18nItem'
+import Log from '../Log'
 
 class I18nFile {
   i18nItems = new Map<String, I18nItem>()
+
+  constructor() {
+    const i18nCommonPath = Config.i18nCommonPath
+    // 如果设置了 common 目录
+    if (i18nCommonPath) {
+      try {
+        this.i18nItems.set(i18nCommonPath, new I18nItem(i18nCommonPath))
+      } catch (err) {
+        Log.error(err)
+      }
+    }
+  }
 
   getFileByFilepath(filepath: string): I18nItem {
     const localepath = this.getRelativePathByFilepath(filepath)
