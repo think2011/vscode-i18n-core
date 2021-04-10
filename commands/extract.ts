@@ -4,7 +4,7 @@ import meta from '../meta'
 import * as path from 'path'
 import { i18nFile } from '../i18nFile'
 import Config from '../Config'
-import { StructureType } from '../i18nFile/I18nItem'
+import { StructureType, MatchMode } from '../i18nFile/I18nItem'
 
 const toCamelCase = str => {
   return str.replace(/(-\w)/g, $1 => {
@@ -78,7 +78,7 @@ const onExtract = async ({
   })
 
   // 翻译内容
-  let transData = i18n.getI18n(key)
+  let transData = i18n.getI18n(key, MatchMode.WRITE)
   const mainTrans = transData.find(item => item.lng === Config.sourceLocale)
 
   mainTrans.text = text
